@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://localhost:7291/api"
+  baseURL: import.meta.env.DEV ? "https://localhost:7291/api" : "/api"
 });
 
 export async function getMilestones(studyGoalId) {

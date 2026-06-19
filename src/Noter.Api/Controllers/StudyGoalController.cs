@@ -32,7 +32,7 @@ public class StudyGoalController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAllStudyGoals()
     {
-        var result = await _repository.GetAllsync();
+        var result = await _repository.GetAllAsync();
         return Ok(result);
     }
 }

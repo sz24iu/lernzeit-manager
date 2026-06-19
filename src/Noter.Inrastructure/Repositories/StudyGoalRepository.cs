@@ -33,10 +33,11 @@ namespace Noter.Inrastructure.Repositories
             throw new NotImplementedException();
         }
 
-        public async Task<IQueryable<StudyGoal>> GetAllsync()
+        public async Task<List<StudyGoal>> GetAllAsync()
         {
-            var result = _context.StudyGoals;
-            return result;
+            return await _context.StudyGoals
+                .AsNoTracking()
+                .ToListAsync();
         }
 
         public async Task<StudyGoal?> GetByIdAsync(Guid id)

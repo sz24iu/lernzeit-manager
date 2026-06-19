@@ -3,7 +3,9 @@ using Microsoft.OpenApi.Models;
 using Noter.Domain.Repositories;
 using Noter.Inrastructure.Persistence.DbContexts;
 using Noter.Inrastructure.Repositories;
+using Npgsql;
 using System.Text;
+using System.Text.Json.Serialization;
 
 internal class Program
 {
@@ -12,21 +14,27 @@ internal class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Controllers
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            });
 
         // Database
-        var connectionString = builder.Configuration["AZURE_POSTGRESQL_CONNECTIONSTRING"]
-            ?? builder.Configuration.GetConnectionString("AZURE_POSTGRESQL_CONNECTIONSTRING")
-            ?? builder.Configuration.GetConnectionString("DefaultConnection");
+        var azureConnectionString = builder.Configuration["AZURE_POSTGRESQL_CONNECTIONSTRING"]
+            ?? builder.Configuration.GetConnectionString("AZURE_POSTGRESQL_CONNECTIONSTRING");
 
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (string.IsNullOrWhiteSpace(azureConnectionString))
         {
-            connectionString = "Host=localhost;Port=5432;Database=lernzeit;Username=postgres;Password=postgres";
+            throw new InvalidOperationException(
+                "Missing Azure PostgreSQL connection string. Set AZURE_POSTGRESQL_CONNECTIONSTRING in App Service configuration.");
         }
+
+        var normalizedConnectionString = NormalizePostgresConnectionString(azureConnectionString);
 
         builder.Services.AddDbContext<NoterDbContext>(options =>
         {
-            options.UseNpgsql(connectionString);
+            options.UseNpgsql(normalizedConnectionString);
         });
 
         // Repositories
@@ -138,5 +146,16 @@ internal class Program
         app.MapFallbackToFile("index.html");
 
         app.Run();
+    }
+
+    private static string NormalizePostgresConnectionString(string connectionString)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            SslMode = SslMode.Require,
+            TrustServerCertificate = true
+        };
+
+        return builder.ConnectionString;
     }
 }

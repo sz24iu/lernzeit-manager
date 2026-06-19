@@ -34,12 +34,12 @@ namespace Noter.Inrastructure.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<IQueryable<Milestone>> GetByStudyGoalIdAsync(Guid id)
+        public async Task<List<Milestone>> GetByStudyGoalIdAsync(Guid id)
         {
-            var result = _context.Milestones
-                .Where(x => x.StudyGoalId == id);
-
-            return result;
+            return await _context.Milestones
+                .AsNoTracking()
+                .Where(x => x.StudyGoalId == id)
+                .ToListAsync();
         }
 
         public async Task UpdateAsync(UpdateMilestoneStatusDto dto)

@@ -11,7 +11,7 @@ namespace Noter.Domain.Repositories
     public interface IStudyGoalRepository
     {
         Task<StudyGoal?> GetByIdAsync(Guid id);
-        Task<IQueryable<StudyGoal>> GetAllsync();
+        Task<List<StudyGoal>> GetAllAsync();
 
         Task AddAsync(CreateStudyGoalDto goal);
 

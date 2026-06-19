@@ -15,10 +15,16 @@ internal class Program
         builder.Services.AddControllers();
 
         // Database
+        var connectionString = builder.Configuration["AZURE_POSTGRESQL_CONNECTIONSTRING"];
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Missing Azure database connection string. Set AZURE_POSTGRESQL_CONNECTIONSTRING in App Service configuration.");
+        }
+
         builder.Services.AddDbContext<NoterDbContext>(options =>
         {
-            options.UseNpgsql(
-                builder.Configuration.GetConnectionString("DefaultConnection"));
+            options.UseNpgsql(connectionString);
         });
 
         // Repositories

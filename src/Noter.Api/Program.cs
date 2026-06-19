@@ -79,7 +79,7 @@ internal class Program
                 Scheme = "Bearer",
                 BearerFormat = "JWT",
                 In = ParameterLocation.Header,
-                Description = "Введите JWT токен: Bearer {token}"
+                Description = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ JWT пїЅпїЅпїЅпїЅпїЅ: Bearer {token}"
             });
 
             c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -119,10 +119,15 @@ internal class Program
 
         app.UseHttpsRedirection();
 
+        app.UseDefaultFiles();
+        app.UseStaticFiles();
+
         app.UseAuthentication();
         app.UseAuthorization();
 
         app.MapControllers();
+
+        app.MapFallbackToFile("index.html");
 
         app.Run();
     }

@@ -23,11 +23,29 @@ jobs:
         with:
           dotnet-version: '8.x'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Vue frontend
+        shell: bash
+        run: |
+          cd NoterUI
+          npm ci || npm install
+          npm run build
+
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
       - name: dotnet publish
         run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+
+      - name: Copy frontend to wwwroot
+        shell: bash
+        run: |
+          mkdir -p "${{env.DOTNET_ROOT}}/myapp/wwwroot"
+          cp -r NoterUI/dist/* "${{env.DOTNET_ROOT}}/myapp/wwwroot/"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4

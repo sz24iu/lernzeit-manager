@@ -4,6 +4,7 @@ import { getStudyGoals } from "./api/goals";
 import { getMilestones } from "./api/milestones";
 
 const goals = ref([]);
+const errorMsg = ref("");
 
 // goalId -> milestones
 const milestonesByGoal = ref({});
@@ -12,7 +13,11 @@ const milestonesByGoal = ref({});
 const openGoals = ref({});
 
 onMounted(async () => {
-  goals.value = await getStudyGoals();
+  try {
+    goals.value = await getStudyGoals();
+  } catch (err) {
+    errorMsg.value = "Failed to load study goals. Error: Server responded with status " + (err.response?.status || err.message);
+  }
 });
 
 const toggleMilestones = async (goalId) => {
@@ -30,6 +35,11 @@ const toggleMilestones = async (goalId) => {
 <template>
   <div class="container">
     <h1>📚 Study Goals</h1>
+
+    <div v-if="errorMsg" class="error-box">
+      <p>Error talking to the API! Make sure your Azure Database connection string is configured.</p>
+      <p style="font-weight: bold; margin-top: 10px;">{{ errorMsg }}</p>
+    </div>
 
     <div v-for="g in goals" :key="g.id" class="card">
       
@@ -84,6 +94,14 @@ const toggleMilestones = async (goalId) => {
 </template>
 
 <style scoped>
+.error-box {
+  background: #ff4c4c;
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
 .container {
   padding: 20px;
   font-family: Arial;

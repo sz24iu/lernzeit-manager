@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 
 internal class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -123,6 +123,8 @@ internal class Program
 
         var app = builder.Build();
 
+    await ApplyDatabaseMigrationsAsync(app);
+
         // Middleware
         if (app.Environment.IsDevelopment())
         {
@@ -146,6 +148,33 @@ internal class Program
         app.MapFallbackToFile("index.html");
 
         app.Run();
+    }
+
+    private static async Task ApplyDatabaseMigrationsAsync(WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<NoterDbContext>();
+
+        try
+        {
+            var pendingMigrations = (await dbContext.Database.GetPendingMigrationsAsync()).ToList();
+
+            if (pendingMigrations.Count == 0)
+            {
+                logger.LogInformation("No pending EF Core migrations.");
+                return;
+            }
+
+            logger.LogInformation("Applying {Count} pending EF Core migration(s).", pendingMigrations.Count);
+            await dbContext.Database.MigrateAsync();
+            logger.LogInformation("EF Core migrations applied successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex, "Failed to apply EF Core migrations during startup.");
+            throw;
+        }
     }
 
     private static string NormalizePostgresConnectionString(string connectionString)

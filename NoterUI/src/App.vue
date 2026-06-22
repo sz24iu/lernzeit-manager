@@ -14,6 +14,7 @@ const isUpdatingMilestoneById = ref({});
 // Timer-State
 const timerSeconds = ref(0);
 const timerRunning = ref(false);
+const timerStopped = ref(false);
 let timerInterval = null;
 
 const goalForm = ref({
@@ -51,7 +52,7 @@ const formatTimer = (seconds) => {
 };
 
 const startTimer = () => {
-  if (!timerRunning.value) {
+  if (!timerRunning.value && !timerStopped.value) {
     timerRunning.value = true;
     timerInterval = setInterval(() => {
       timerSeconds.value += 1;
@@ -68,12 +69,15 @@ const pauseTimer = () => {
 
 const stopTimer = () => {
   timerRunning.value = false;
+  timerStopped.value = true;
   clearInterval(timerInterval);
 };
 
 const resetTimer = () => {
-  stopTimer();
+  timerRunning.value = false;
+  timerStopped.value = false;
   timerSeconds.value = 0;
+  clearInterval(timerInterval);
 };
 
 onMounted(loadGoals);
@@ -262,7 +266,7 @@ const typeLabel = (type) => {
         <button
           type="button"
           class="timer-btn start"
-          :disabled="timerRunning"
+          :disabled="timerRunning || timerStopped"
           @click="startTimer"
         >
           ▶ Start
@@ -278,7 +282,7 @@ const typeLabel = (type) => {
         <button
           type="button"
           class="timer-btn stop"
-          :disabled="timerSeconds === 0"
+          :disabled="timerStopped || timerSeconds === 0"
           @click="stopTimer"
         >
           ⏹ Stop

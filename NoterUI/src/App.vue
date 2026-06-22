@@ -140,7 +140,8 @@ const submitMilestone = async (goalId) => {
 const nextMilestoneStatus = (currentStatus) => {
   if (currentStatus === 0) return 1;
   if (currentStatus === 1) return 2;
-  return currentStatus;
+  if (currentStatus === 2) return 0;
+  return 0;
 };
 
 const updateStatusForMilestone = async (milestone) => {
@@ -285,7 +286,7 @@ const statusLabel = (status) => {
                   done: m.status === 2,
                   failed: m.status === 3
                 }"
-                :disabled="isUpdatingMilestoneById[m.id] || m.status === 2"
+                :disabled="isUpdatingMilestoneById[m.id]"
                 @click="updateStatusForMilestone(m)"
               >
                 {{ isUpdatingMilestoneById[m.id] ? "Speichern..." : statusLabel(m.status) }}

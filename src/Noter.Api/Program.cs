@@ -1,5 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Noter.Domain.Entities.DbEntities;
+using Noter.Domain.Entities.Dtos.MilestoneDto;
+using Noter.Domain.Entities.Dtos.StudyGoalDto;
+using Noter.Domain.Entities.Dtos.UserDto;
+using Noter.Domain.Entities.Enums;
 using Noter.Domain.Repositories;
 using Noter.Inrastructure.Persistence.DbContexts;
 using Noter.Inrastructure.Repositories;
@@ -123,7 +128,8 @@ internal class Program
 
         var app = builder.Build();
 
-    await ApplyDatabaseMigrationsAsync(app);
+        await ApplyDatabaseMigrationsAsync(app);
+        await SeedDemoDataAsync(app);
 
         // Middleware
         if (app.Environment.IsDevelopment())
@@ -148,6 +154,80 @@ internal class Program
         app.MapFallbackToFile("index.html");
 
         app.Run();
+    }
+
+    private static async Task SeedDemoDataAsync(WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<NoterDbContext>();
+
+        var hasGoals = await dbContext.StudyGoals.AnyAsync();
+
+        if (hasGoals)
+        {
+            logger.LogInformation("Skipping demo data seed because study goals already exist.");
+            return;
+        }
+
+        var user = await dbContext.Users.FirstOrDefaultAsync();
+
+        if (user is null)
+        {
+            user = new User(new CreateUserDto
+            {
+                Email = "demo.user@noter.local"
+            });
+
+            dbContext.Users.Add(user);
+            await dbContext.SaveChangesAsync();
+        }
+
+        var goal1 = new StudyGoal(new CreateStudyGoalDto
+        {
+            Title = "Prepare for PostgreSQL fundamentals",
+            Description = "Understand queries, joins, indexes and backup strategy.",
+            Type = GoalType.Exam,
+            StartDate = DateTime.UtcNow.Date,
+            EndDate = DateTime.UtcNow.Date.AddDays(45),
+            UserId = user.Id
+        });
+
+        var goal2 = new StudyGoal(new CreateStudyGoalDto
+        {
+            Title = "Ship first Noter release",
+            Description = "Implement goals, milestones, and deployment monitoring.",
+            Type = GoalType.Project,
+            StartDate = DateTime.UtcNow.Date,
+            EndDate = DateTime.UtcNow.Date.AddDays(60),
+            UserId = user.Id
+        });
+
+        dbContext.StudyGoals.AddRange(goal1, goal2);
+        await dbContext.SaveChangesAsync();
+
+        var milestone1 = new Milestone(new CreateMilestoneDto
+        {
+            StudyGoalId = goal1.Id,
+            Title = "Complete PostgreSQL intro course"
+        });
+
+        var milestone2 = new Milestone(new CreateMilestoneDto
+        {
+            StudyGoalId = goal1.Id,
+            Title = "Practice query optimization"
+        });
+
+        var milestone3 = new Milestone(new CreateMilestoneDto
+        {
+            StudyGoalId = goal2.Id,
+            Title = "Deploy backend to Azure App Service"
+        });
+
+        dbContext.Milestones.AddRange(milestone1, milestone2, milestone3);
+        await dbContext.SaveChangesAsync();
+
+        logger.LogInformation("Demo data seeded successfully.");
     }
 
     private static async Task ApplyDatabaseMigrationsAsync(WebApplication app)

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { createStudyGoal, getStudyGoals } from "./api/goals";
-import { createMilestone, getMilestones } from "./api/milestones";
+import { createMilestone, getMilestones, updateMilestoneStatus } from "./api/milestones";
 
 const goals = ref([]);
 const errorMsg = ref("");
@@ -9,6 +9,7 @@ const successMsg = ref("");
 const isLoadingGoals = ref(false);
 const isCreatingGoal = ref(false);
 const isCreatingMilestoneByGoal = ref({});
+const isUpdatingMilestoneById = ref({});
 
 const goalForm = ref({
   title: "",
@@ -136,6 +137,46 @@ const submitMilestone = async (goalId) => {
   }
 };
 
+const nextMilestoneStatus = (currentStatus) => {
+  if (currentStatus === 0) return 1;
+  if (currentStatus === 1) return 2;
+  return currentStatus;
+};
+
+const updateStatusForMilestone = async (milestone) => {
+  errorMsg.value = "";
+  successMsg.value = "";
+
+  const currentStatus = Number(milestone.status);
+  const nextStatus = nextMilestoneStatus(currentStatus);
+
+  if (nextStatus === currentStatus) {
+    return;
+  }
+
+  isUpdatingMilestoneById.value = {
+    ...isUpdatingMilestoneById.value,
+    [milestone.id]: true
+  };
+
+  try {
+    await updateMilestoneStatus({
+      id: milestone.id,
+      status: nextStatus
+    });
+
+    milestone.status = nextStatus;
+    successMsg.value = "Meilenstein-Status wurde aktualisiert.";
+  } catch (err) {
+    errorMsg.value = "Status konnte nicht aktualisiert werden: " + (err.response?.status || err.message);
+  } finally {
+    isUpdatingMilestoneById.value = {
+      ...isUpdatingMilestoneById.value,
+      [milestone.id]: false
+    };
+  }
+};
+
 const statusLabel = (status) => {
   if (status === 0) return "Geplant";
   if (status === 1) return "In Bearbeitung";
@@ -235,7 +276,8 @@ const statusLabel = (status) => {
           <ul v-if="milestonesByGoal[g.id]" class="milestone-list">
             <li v-for="m in milestonesByGoal[g.id]" :key="m.id" class="milestone">
               <span class="title">{{ m.title }}</span>
-              <span
+              <button
+                type="button"
                 class="status"
                 :class="{
                   planned: m.status === 0,
@@ -243,9 +285,11 @@ const statusLabel = (status) => {
                   done: m.status === 2,
                   failed: m.status === 3
                 }"
+                :disabled="isUpdatingMilestoneById[m.id] || m.status === 2"
+                @click="updateStatusForMilestone(m)"
               >
-                {{ statusLabel(m.status) }}
-              </span>
+                {{ isUpdatingMilestoneById[m.id] ? "Speichern..." : statusLabel(m.status) }}
+              </button>
             </li>
           </ul>
           <p v-else>Lade Meilensteine...</p>
@@ -410,10 +454,22 @@ textarea:focus {
 }
 
 .status {
+  border: 1px solid transparent;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.status:hover {
+  filter: brightness(1.08);
+}
+
+.status:disabled {
+  cursor: not-allowed;
+  opacity: 0.88;
 }
 
 .status.planned {

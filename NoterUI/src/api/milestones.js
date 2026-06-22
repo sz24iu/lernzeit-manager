@@ -13,3 +13,8 @@ export async function createMilestone(payload) {
   const res = await api.post("/milestone", payload);
   return res.data;
 }
+
+export async function updateMilestoneStatus(payload) {
+  const res = await api.patch("/milestone", payload);
+  return res.data;
+}

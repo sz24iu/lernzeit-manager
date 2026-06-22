@@ -1,35 +1,22 @@
 @import './base.css';
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+  min-height: 100vh;
+  width: 100%;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(40, 88, 170, 0.32), transparent 28%),
+    radial-gradient(circle at 90% 6%, rgba(0, 153, 133, 0.2), transparent 26%),
+    linear-gradient(180deg, #09101f 0%, #0b1325 42%, #111a31 100%);
+  background-attachment: fixed;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-}
-
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
+h1,
+h2,
+h3 {
+  font-family: 'Avenir Next', 'Nunito Sans', 'Trebuchet MS', sans-serif;
+  letter-spacing: 0.01em;
 }

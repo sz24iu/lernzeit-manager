@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { createStudyGoal, getStudyGoals } from "./api/goals";
 import { createMilestone, getMilestones, updateMilestoneStatus } from "./api/milestones";
 
@@ -10,6 +10,11 @@ const isLoadingGoals = ref(false);
 const isCreatingGoal = ref(false);
 const isCreatingMilestoneByGoal = ref({});
 const isUpdatingMilestoneById = ref({});
+
+// Timer-State
+const timerSeconds = ref(0);
+const timerRunning = ref(false);
+let timerInterval = null;
 
 const goalForm = ref({
   title: "",
@@ -37,7 +42,47 @@ async function loadGoals() {
   }
 }
 
+// Timer-Funktionen
+const formatTimer = (seconds) => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+};
+
+const startTimer = () => {
+  if (!timerRunning.value) {
+    timerRunning.value = true;
+    timerInterval = setInterval(() => {
+      timerSeconds.value += 1;
+    }, 1000);
+  }
+};
+
+const pauseTimer = () => {
+  if (timerRunning.value) {
+    timerRunning.value = false;
+    clearInterval(timerInterval);
+  }
+};
+
+const stopTimer = () => {
+  timerRunning.value = false;
+  clearInterval(timerInterval);
+};
+
+const resetTimer = () => {
+  stopTimer();
+  timerSeconds.value = 0;
+};
+
 onMounted(loadGoals);
+
+onUnmounted(() => {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+});
 
 const toggleMilestones = async (goalId) => {
   openGoals.value[goalId] = !openGoals.value[goalId];
@@ -184,6 +229,14 @@ const statusLabel = (status) => {
   if (status === 2) return "Abgeschlossen";
   return "Fehlgeschlagen";
 };
+
+const typeLabel = (type) => {
+  if (type === 0) return "Modul";
+  if (type === 1) return "Klausur";
+  if (type === 2) return "Projekt";
+  if (type === 3) return "Aufgabe";
+  return "Sonstiges";
+};
 </script>
 
 <template>
@@ -195,6 +248,51 @@ const statusLabel = (status) => {
         Erstelle Studienziele, zerlege sie in Meilensteine und behalte deinen Fortschritt auf jedem Gerät im Blick.
       </p>
     </header>
+
+    <section class="panel timer-panel">
+      <div class="timer-header">
+        <h2>Lernzeit-Stoppuhr</h2>
+      </div>
+
+      <div class="timer-display">
+        <div class="timer-time">{{ formatTimer(timerSeconds) }}</div>
+      </div>
+
+      <div class="timer-controls">
+        <button
+          type="button"
+          class="timer-btn start"
+          :disabled="timerRunning"
+          @click="startTimer"
+        >
+          ▶ Start
+        </button>
+        <button
+          type="button"
+          class="timer-btn pause"
+          :disabled="!timerRunning"
+          @click="pauseTimer"
+        >
+          ⏸ Pause
+        </button>
+        <button
+          type="button"
+          class="timer-btn stop"
+          :disabled="timerSeconds === 0"
+          @click="stopTimer"
+        >
+          ⏹ Stop
+        </button>
+        <button
+          type="button"
+          class="timer-btn reset"
+          :disabled="timerSeconds === 0"
+          @click="resetTimer"
+        >
+          ↺ Reset
+        </button>
+      </div>
+    </section>
 
     <section class="panel">
       <div class="section-head">
@@ -264,7 +362,10 @@ const statusLabel = (status) => {
       </p>
 
       <article v-for="g in goals" :key="g.id" class="card">
-        <h3>{{ g.title }}</h3>
+        <div class="card-header">
+          <h3>{{ g.title }}</h3>
+          <span class="badge type">{{ typeLabel(g.type) }}</span>
+        </div>
         <p class="desc">{{ g.description }}</p>
 
         <div class="actions">
@@ -369,6 +470,78 @@ h2 {
   box-shadow: 0 16px 42px rgba(5, 8, 16, 0.35);
 }
 
+.timer-panel {
+  text-align: center;
+}
+
+.timer-header {
+  margin-bottom: 14px;
+}
+
+.timer-display {
+  background: rgba(10, 16, 29, 0.8);
+  border: 2px solid #4a90c7;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.timer-time {
+  font-size: 4rem;
+  font-weight: 800;
+  font-family: "Courier New", monospace;
+  color: #63b3ed;
+  letter-spacing: 0.15em;
+}
+
+.timer-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.timer-btn {
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.2s ease;
+  font-size: 14px;
+}
+
+.timer-btn.start {
+  background: linear-gradient(125deg, #10b981, #059669);
+  color: white;
+}
+
+.timer-btn.pause {
+  background: linear-gradient(125deg, #f59e0b, #d97706);
+  color: white;
+}
+
+.timer-btn.stop {
+  background: linear-gradient(125deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.timer-btn.reset {
+  background: linear-gradient(125deg, #8b5cf6, #7c3aed);
+  color: white;
+}
+
+.timer-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.timer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .form-grid {
   display: grid;
   gap: 12px;
@@ -426,6 +599,35 @@ textarea:focus {
 .desc {
   margin: 6px 0 12px;
   color: #c9d1e8;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.card-header h3 {
+  margin: 0;
+  flex: 1;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.badge.type {
+  background: rgba(99, 179, 237, 0.25);
+  color: #63b3ed;
+  border: 1px solid #4a90c7;
 }
 
 .actions {

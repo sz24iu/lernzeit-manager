@@ -162,6 +162,34 @@ internal class Program
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         var dbContext = scope.ServiceProvider.GetRequiredService<NoterDbContext>();
 
+        var legacyDemoUser = await dbContext.Users
+            .FirstOrDefaultAsync(x => x.Email == "demo.user@noter.local");
+
+        if (legacyDemoUser is not null)
+        {
+            var legacyGoalIds = await dbContext.StudyGoals
+                .Where(x => x.UserId == legacyDemoUser.Id)
+                .Select(x => x.Id)
+                .ToListAsync();
+
+            if (legacyGoalIds.Count > 0)
+            {
+                var legacyMilestones = await dbContext.Milestones
+                    .Where(x => legacyGoalIds.Contains(x.StudyGoalId))
+                    .ToListAsync();
+
+                var legacyGoals = await dbContext.StudyGoals
+                    .Where(x => legacyGoalIds.Contains(x.Id))
+                    .ToListAsync();
+
+                dbContext.Milestones.RemoveRange(legacyMilestones);
+                dbContext.StudyGoals.RemoveRange(legacyGoals);
+                await dbContext.SaveChangesAsync();
+
+                logger.LogInformation("Removed legacy English demo data for reseeding.");
+            }
+        }
+
         var hasGoals = await dbContext.StudyGoals.AnyAsync();
 
         if (hasGoals)
@@ -176,7 +204,7 @@ internal class Program
         {
             user = new User(new CreateUserDto
             {
-                Email = "demo.user@noter.local"
+                Email = "demo.lernende@noter.local"
             });
 
             dbContext.Users.Add(user);
@@ -185,46 +213,110 @@ internal class Program
 
         var goal1 = new StudyGoal(new CreateStudyGoalDto
         {
-            Title = "Prepare for PostgreSQL fundamentals",
-            Description = "Understand queries, joins, indexes and backup strategy.",
+            Title = "Klausurvorbereitung Statistik I",
+            Description = "Wichtige Formeln wiederholen und Altklausuren loesen.",
             Type = GoalType.Exam,
             StartDate = DateTime.UtcNow.Date,
-            EndDate = DateTime.UtcNow.Date.AddDays(45),
+            EndDate = DateTime.UtcNow.Date.AddDays(30),
             UserId = user.Id
         });
 
         var goal2 = new StudyGoal(new CreateStudyGoalDto
         {
-            Title = "Ship first Noter release",
-            Description = "Implement goals, milestones, and deployment monitoring.",
+            Title = "Hausarbeit Geschichte des 19. Jahrhunderts",
+            Description = "Quellenrecherche, Gliederung und erste Rohfassung erstellen.",
+            Type = GoalType.Assignment,
+            StartDate = DateTime.UtcNow.Date,
+            EndDate = DateTime.UtcNow.Date.AddDays(40),
+            UserId = user.Id
+        });
+
+        var goal3 = new StudyGoal(new CreateStudyGoalDto
+        {
+            Title = "Lernplan Anatomie I",
+            Description = "Woechentliche Lernziele fuer Knochen, Muskeln und Organsysteme.",
+            Type = GoalType.Module,
+            StartDate = DateTime.UtcNow.Date,
+            EndDate = DateTime.UtcNow.Date.AddDays(70),
+            UserId = user.Id
+        });
+
+        var goal4 = new StudyGoal(new CreateStudyGoalDto
+        {
+            Title = "Projektarbeit Psychologie: Lernmotivation",
+            Description = "Literatur auswerten und ein kleines Befragungskonzept entwickeln.",
             Type = GoalType.Project,
             StartDate = DateTime.UtcNow.Date,
             EndDate = DateTime.UtcNow.Date.AddDays(60),
             UserId = user.Id
         });
 
-        dbContext.StudyGoals.AddRange(goal1, goal2);
+        dbContext.StudyGoals.AddRange(goal1, goal2, goal3, goal4);
         await dbContext.SaveChangesAsync();
 
         var milestone1 = new Milestone(new CreateMilestoneDto
         {
             StudyGoalId = goal1.Id,
-            Title = "Complete PostgreSQL intro course"
+            Title = "Zusammenfassung der Vorlesungen Kapitel 1-4"
         });
 
         var milestone2 = new Milestone(new CreateMilestoneDto
         {
             StudyGoalId = goal1.Id,
-            Title = "Practice query optimization"
+            Title = "Zwei Altklausuren unter Zeitdruck bearbeiten"
         });
 
         var milestone3 = new Milestone(new CreateMilestoneDto
         {
             StudyGoalId = goal2.Id,
-            Title = "Deploy backend to Azure App Service"
+            Title = "Mindestens 10 wissenschaftliche Quellen sammeln"
         });
 
-        dbContext.Milestones.AddRange(milestone1, milestone2, milestone3);
+        var milestone4 = new Milestone(new CreateMilestoneDto
+        {
+            StudyGoalId = goal2.Id,
+            Title = "Gliederung und Einleitung fertigstellen"
+        });
+
+        var milestone5 = new Milestone(new CreateMilestoneDto
+        {
+            StudyGoalId = goal3.Id,
+            Title = "Lernkarten fuer Bewegungsapparat erstellen"
+        });
+
+        var milestone6 = new Milestone(new CreateMilestoneDto
+        {
+            StudyGoalId = goal3.Id,
+            Title = "Testatvorbereitung fuer Anatomie-Labor"
+        });
+
+        var milestone7 = new Milestone(new CreateMilestoneDto
+        {
+            StudyGoalId = goal4.Id,
+            Title = "Forschungsfrage und Methodik definieren"
+        });
+
+        var milestone8 = new Milestone(new CreateMilestoneDto
+        {
+            StudyGoalId = goal4.Id,
+            Title = "Erste Auswertung der Umfrageergebnisse"
+        });
+
+        // Mix von Stati fuer realistischere Testdaten im Frontend.
+        milestone2.Status = GoalStatus.InProgress;
+        milestone3.Status = GoalStatus.Completed;
+        milestone5.Status = GoalStatus.InProgress;
+        milestone7.Status = GoalStatus.Completed;
+
+        dbContext.Milestones.AddRange(
+            milestone1,
+            milestone2,
+            milestone3,
+            milestone4,
+            milestone5,
+            milestone6,
+            milestone7,
+            milestone8);
         await dbContext.SaveChangesAsync();
 
         logger.LogInformation("Demo data seeded successfully.");

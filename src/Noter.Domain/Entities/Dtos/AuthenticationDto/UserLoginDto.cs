@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Noter.Domain.Entities.Dtos.UserDto
+namespace Noter.Domain.Entities.Dtos.AuthenticationDto
 {
-    public class CreateUserDto
+    public class UserLoginDto
     {
         public string Email { get; set; }
-        public string HashPassword { get; set; }
+        public string Password { get; set; }
     }
 }

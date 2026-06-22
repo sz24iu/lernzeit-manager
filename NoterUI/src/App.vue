@@ -150,7 +150,7 @@ const statusLabel = (status) => {
       <p class="eyebrow">Lernzeit Manager</p>
       <h1>Lernziele strukturiert planen</h1>
       <p class="lead">
-        Erstelle Studienziele, zerlege sie in Meilensteine und behalte deinen Fortschritt auf jeder Geraetegroesse im Blick.
+        Erstelle Studienziele, zerlege sie in Meilensteine und behalte deinen Fortschritt auf jedem Gerät im Blick.
       </p>
     </header>
 

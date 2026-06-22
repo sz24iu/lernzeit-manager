@@ -8,3 +8,8 @@ export async function getMilestones(studyGoalId) {
   const res = await api.get(`/milestone/${studyGoalId}`);
   return res.data;
 }
+
+export async function createMilestone(payload) {
+  const res = await api.post("/milestone", payload);
+  return res.data;
+}

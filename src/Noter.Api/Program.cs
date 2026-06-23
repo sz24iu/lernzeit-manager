@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Noter.Application.HashingUnits;
 using Noter.Domain.Entities.ConfigEntities;
 using Noter.Domain.Entities.DbEntities;
 using Noter.Domain.Entities.Dtos.MilestoneDto;
@@ -188,6 +189,8 @@ internal class Program
         using var scope = app.Services.CreateScope();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         var dbContext = scope.ServiceProvider.GetRequiredService<NoterDbContext>();
+        const string demoEmail = "demo.lernende@noter.local";
+        const string demoPassword = "Test123!";
 
         var legacyDemoUser = await dbContext.Users
             .FirstOrDefaultAsync(x => x.Email == "demo.user@noter.local");
@@ -217,25 +220,32 @@ internal class Program
             }
         }
 
+        var user = await dbContext.Users
+            .FirstOrDefaultAsync(x => x.Email == demoEmail);
+
+        if (user is null)
+        {
+            user = new User(new CreateUserDto
+            {
+                Email = demoEmail,
+                HashPassword = PasswordHasher.Secure(demoPassword)
+            });
+
+            dbContext.Users.Add(user);
+            await dbContext.SaveChangesAsync();
+        }
+        else if (string.IsNullOrWhiteSpace(user.HashPassword))
+        {
+            user.HashPassword = PasswordHasher.Secure(demoPassword);
+            await dbContext.SaveChangesAsync();
+        }
+
         var hasGoals = await dbContext.StudyGoals.AnyAsync();
 
         if (hasGoals)
         {
             logger.LogInformation("Skipping demo data seed because study goals already exist.");
             return;
-        }
-
-        var user = await dbContext.Users.FirstOrDefaultAsync();
-
-        if (user is null)
-        {
-            user = new User(new CreateUserDto
-            {
-                Email = "demo.lernende@noter.local"
-            });
-
-            dbContext.Users.Add(user);
-            await dbContext.SaveChangesAsync();
         }
 
         var goal1 = new StudyGoal(new CreateStudyGoalDto

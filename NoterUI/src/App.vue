@@ -1,7 +1,13 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
+import { login } from "./api/auth";
+import { setAccessToken } from "./api/http";
 import { createStudyGoal, getStudyGoals } from "./api/goals";
 import { createMilestone, getMilestones, updateMilestoneStatus } from "./api/milestones";
+
+const tokenStorageKey = "noter.jwt";
+const demoUserEmail = "demo.lernende@noter.local";
+const demoUserPassword = "Test123!";
 
 const goals = ref([]);
 const errorMsg = ref("");
@@ -10,6 +16,13 @@ const isLoadingGoals = ref(false);
 const isCreatingGoal = ref(false);
 const isCreatingMilestoneByGoal = ref({});
 const isUpdatingMilestoneById = ref({});
+const isAuthenticating = ref(false);
+const authToken = ref(localStorage.getItem(tokenStorageKey) || "");
+const authForm = ref({
+  email: demoUserEmail,
+  password: demoUserPassword
+});
+const isAuthenticated = computed(() => Boolean(authToken.value));
 
 // Timer-State
 const timerSeconds = ref(0);
@@ -30,17 +43,73 @@ const milestoneFormByGoal = ref({});
 const milestonesByGoal = ref({});
 const openGoals = ref({});
 
+setAccessToken(authToken.value);
+
 async function loadGoals() {
   isLoadingGoals.value = true;
   errorMsg.value = "";
 
   try {
     goals.value = await getStudyGoals();
+    if (!goalForm.value.userId && goals.value.length > 0 && goals.value[0].userId) {
+      goalForm.value.userId = goals.value[0].userId;
+    }
   } catch (err) {
     errorMsg.value = "Studienziele konnten nicht geladen werden: " + (err.response?.status || err.message);
   } finally {
     isLoadingGoals.value = false;
   }
+}
+
+function persistToken(token) {
+  authToken.value = token;
+  setAccessToken(token);
+
+  if (token) {
+    localStorage.setItem(tokenStorageKey, token);
+    return;
+  }
+
+  localStorage.removeItem(tokenStorageKey);
+}
+
+function ensureAuthenticated(actionLabel) {
+  if (isAuthenticated.value) {
+    return true;
+  }
+
+  errorMsg.value = `${actionLabel} erfordert eine Anmeldung mit dem Test-User.`;
+  return false;
+}
+
+async function submitLogin() {
+  errorMsg.value = "";
+  successMsg.value = "";
+  isAuthenticating.value = true;
+
+  try {
+    const result = await login({
+      email: authForm.value.email.trim(),
+      password: authForm.value.password
+    });
+
+    if (!result.success || !result.token) {
+      throw new Error(result.errors?.join(", ") || "Login fehlgeschlagen.");
+    }
+
+    persistToken(result.token);
+    successMsg.value = `Angemeldet als ${authForm.value.email.trim()}.`;
+  } catch (err) {
+    errorMsg.value = "Anmeldung fehlgeschlagen: " + (err.response?.data?.errors?.join(", ") || err.message);
+  } finally {
+    isAuthenticating.value = false;
+  }
+}
+
+function logout() {
+  persistToken("");
+  successMsg.value = "Abgemeldet.";
+  errorMsg.value = "";
 }
 
 // Timer-Funktionen
@@ -89,6 +158,10 @@ onUnmounted(() => {
 });
 
 const toggleMilestones = async (goalId) => {
+  if (!openGoals.value[goalId] && !ensureAuthenticated("Das Laden von Meilensteinen")) {
+    return;
+  }
+
   openGoals.value[goalId] = !openGoals.value[goalId];
 
   if (!openGoals.value[goalId]) {
@@ -153,6 +226,11 @@ const ensureMilestoneForm = (goalId) => {
 const submitMilestone = async (goalId) => {
   errorMsg.value = "";
   successMsg.value = "";
+
+  if (!ensureAuthenticated("Das Erstellen von Meilensteinen")) {
+    return;
+  }
+
   ensureMilestoneForm(goalId);
 
   const title = milestoneFormByGoal.value[goalId].title?.trim();
@@ -196,6 +274,10 @@ const nextMilestoneStatus = (currentStatus) => {
 const updateStatusForMilestone = async (milestone) => {
   errorMsg.value = "";
   successMsg.value = "";
+
+  if (!ensureAuthenticated("Das Aktualisieren des Status")) {
+    return;
+  }
 
   const currentStatus = Number(milestone.status);
   const nextStatus = nextMilestoneStatus(currentStatus);
@@ -253,6 +335,45 @@ const typeLabel = (type) => {
       </p>
     </header>
 
+    <section class="panel auth-panel">
+      <div class="section-head">
+        <div>
+          <h2>Test-Login</h2>
+          <p class="panel-note">
+            Demo-Zugang: {{ demoUserEmail }} / {{ demoUserPassword }}
+          </p>
+        </div>
+        <span class="badge" :class="isAuthenticated ? 'auth-active' : 'auth-idle'">
+          {{ isAuthenticated ? "JWT aktiv" : "Nicht angemeldet" }}
+        </span>
+      </div>
+
+      <div class="form-grid auth-grid">
+        <label>
+          E-Mail
+          <input v-model="authForm.email" type="email" autocomplete="username" />
+        </label>
+
+        <label>
+          Passwort
+          <input v-model="authForm.password" type="password" autocomplete="current-password" />
+        </label>
+      </div>
+
+      <div class="auth-actions">
+        <button class="primary" :disabled="isAuthenticating" @click="submitLogin">
+          {{ isAuthenticating ? "Anmeldung..." : "Mit Test-User anmelden" }}
+        </button>
+        <button class="ghost" :disabled="!isAuthenticated" @click="logout">
+          Abmelden
+        </button>
+      </div>
+
+      <p class="panel-note">
+        Die geschuetzten Meilenstein-Endpunkte funktionieren erst nach erfolgreichem Login. Studienziele laden bleibt weiterhin offen.
+      </p>
+    </section>
+
     <section class="panel timer-panel">
       <div class="timer-header">
         <h2>Lernzeit-Stoppuhr</h2>
@@ -301,6 +422,7 @@ const typeLabel = (type) => {
     <section class="panel">
       <div class="section-head">
         <h2>Neues Studienziel erstellen</h2>
+        <span class="panel-note">Die User-ID wird, wenn moeglich, automatisch aus vorhandenen Demo-Zielen vorbelegt.</span>
       </div>
 
       <div class="form-grid">
@@ -634,6 +756,39 @@ textarea:focus {
   border: 1px solid #4a90c7;
 }
 
+.badge.auth-active {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  border: 1px solid #1f9d73;
+}
+
+.badge.auth-idle {
+  background: rgba(148, 163, 184, 0.18);
+  color: #d7e0fa;
+  border: 1px solid #51627f;
+}
+
+.auth-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-grid {
+  margin-bottom: 0;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.panel-note {
+  margin: 4px 0 0;
+  color: #aebedf;
+  font-size: 0.95rem;
+}
+
 .actions {
   margin-bottom: 12px;
 }
@@ -775,6 +930,10 @@ textarea:focus {
 @media (max-width: 700px) {
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .auth-actions {
+    flex-direction: column;
   }
 
   .milestone {

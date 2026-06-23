@@ -1,8 +1,4 @@
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: import.meta.env.DEV ? "https://localhost:7291/api" : "/api"
-});
+import api from "./http";
 
 export async function getStudyGoals() {
   const res = await api.get("/studygoal");

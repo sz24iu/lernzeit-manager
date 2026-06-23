@@ -19,7 +19,7 @@ namespace Noter.Api.Controllers
         [Route("registration")]
         public async Task<IActionResult> Register([FromBody] CreateUserDto registrationDto)
         {
-            var result = _repository.Registration(registrationDto);
+            var result = await _repository.Registration(registrationDto);
 
             return Ok(result);
         }
@@ -28,7 +28,7 @@ namespace Noter.Api.Controllers
         [Route("login")]
         public async Task<IActionResult> Login([FromBody] UserLoginDto LoginDto)
         {
-            var result = _repository.Login(LoginDto);
+            var result = await _repository.Login(LoginDto);
 
             return Ok(result);
         }

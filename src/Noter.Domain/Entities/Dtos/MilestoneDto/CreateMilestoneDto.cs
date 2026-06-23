@@ -12,5 +12,7 @@ namespace Noter.Domain.Entities.Dtos.MilestoneDto
         public Guid StudyGoalId { get; set; }
 
         public string Title { get; set; }
+
+        public DateTime DueDateTime { get; set; }
     }
 }

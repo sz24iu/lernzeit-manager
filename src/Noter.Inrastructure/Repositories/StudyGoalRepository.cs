@@ -22,6 +22,9 @@ namespace Noter.Inrastructure.Repositories
 
         public async Task AddAsync(CreateStudyGoalDto studyGoalDto)
         {
+            if (string.IsNullOrWhiteSpace(studyGoalDto.Title))
+                throw new Exception("Study goal title is required");
+
             var entity = new StudyGoal(studyGoalDto);
 
             await _context.StudyGoals.AddAsync(entity);
@@ -33,16 +36,17 @@ namespace Noter.Inrastructure.Repositories
             throw new NotImplementedException();
         }
 
-        public async Task<List<StudyGoal>> GetAllAsync()
+        public async Task<List<StudyGoal>> GetAllAsync(Guid userId)
         {
             return await _context.StudyGoals
                 .AsNoTracking()
+                .Where(x => x.UserId == userId)
                 .ToListAsync();
         }
 
-        public async Task<StudyGoal?> GetByIdAsync(Guid id)
+        public async Task<StudyGoal?> GetByIdAsync(Guid id, Guid userId)
         {
-            return await _context.StudyGoals.FirstOrDefaultAsync(x => x.Id == id);
+            return await _context.StudyGoals.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
         }
 
         public Task UpdateAsync(StudyGoal goal)

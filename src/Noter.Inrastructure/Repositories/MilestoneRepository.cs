@@ -21,12 +21,18 @@ namespace Noter.Inrastructure.Repositories
             _context = context;
             _studyGoalRepository = studyGoalRepository;
         }
-        public async Task AddAsync(CreateMilestoneDto milestone)
+        public async Task AddAsync(CreateMilestoneDto milestone, Guid userId)
         {
-            var studyGoal = await _studyGoalRepository.GetByIdAsync(milestone.StudyGoalId);
+            var studyGoal = await _studyGoalRepository.GetByIdAsync(milestone.StudyGoalId, userId);
 
             if (studyGoal == null)
                 throw new Exception("Study goal not found");
+
+            if (studyGoal.UserId != userId)
+                throw new Exception("Forbidden");
+
+            if (string.IsNullOrWhiteSpace(milestone.Title))
+                throw new Exception("Milestone title is required");
 
             var newMilestone = new Milestone(milestone);
 
@@ -34,20 +40,33 @@ namespace Noter.Inrastructure.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<Milestone>> GetByStudyGoalIdAsync(Guid id)
+        public async Task<List<Milestone>> GetByStudyGoalIdAsync(Guid id, Guid userId)
         {
+            var studyGoal = await _studyGoalRepository.GetByIdAsync(id, userId);
+
+            if (studyGoal == null)
+            {
+                return new List<Milestone>();
+            }
+
             return await _context.Milestones
                 .AsNoTracking()
                 .Where(x => x.StudyGoalId == id)
+                .OrderBy(x => x.DueDateTime)
                 .ToListAsync();
         }
 
-        public async Task UpdateAsync(UpdateMilestoneStatusDto dto)
+        public async Task UpdateAsync(UpdateMilestoneStatusDto dto, Guid userId)
         {
             var milestone = await _context.Milestones
                 .FirstOrDefaultAsync(x => x.Id == dto.Id);
 
             if (milestone == null)
+                throw new Exception("Milestone not found");
+
+            var studyGoal = await _studyGoalRepository.GetByIdAsync(milestone.StudyGoalId, userId);
+
+            if (studyGoal == null)
                 throw new Exception("Milestone not found");
 
             milestone.Status = dto.Status;

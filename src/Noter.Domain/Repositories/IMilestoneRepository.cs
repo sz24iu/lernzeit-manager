@@ -10,10 +10,10 @@ namespace Noter.Domain.Repositories
 {
     public interface IMilestoneRepository
     {
-        Task<List<Milestone>> GetByStudyGoalIdAsync(Guid id);
+        Task<List<Milestone>> GetByStudyGoalIdAsync(Guid id, Guid userId);
 
-        Task AddAsync(CreateMilestoneDto milestone);
+        Task AddAsync(CreateMilestoneDto milestone, Guid userId);
 
-        Task UpdateAsync(UpdateMilestoneStatusDto milestone);
+        Task UpdateAsync(UpdateMilestoneStatusDto milestone, Guid userId);
     }
 }

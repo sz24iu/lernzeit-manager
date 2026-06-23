@@ -10,8 +10,8 @@ namespace Noter.Domain.Repositories
 {
     public interface IStudyGoalRepository
     {
-        Task<StudyGoal?> GetByIdAsync(Guid id);
-        Task<List<StudyGoal>> GetAllAsync();
+        Task<StudyGoal?> GetByIdAsync(Guid id, Guid userId);
+        Task<List<StudyGoal>> GetAllAsync(Guid userId);
 
         Task AddAsync(CreateStudyGoalDto goal);
 

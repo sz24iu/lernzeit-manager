@@ -17,6 +17,8 @@ namespace Noter.Domain.Entities.DbEntities
 
         public string Title { get; set; }
 
+        public DateTime DueDateTime { get; set; }
+
         public GoalStatus Status { get; set; }
 
         public ICollection<StudySessionPlan> StudySessionPlans { get; set; }
@@ -25,6 +27,7 @@ namespace Noter.Domain.Entities.DbEntities
         {
             Title = dto.Title;
             StudyGoalId = dto.StudyGoalId;
+            DueDateTime = dto.DueDateTime;
             Status = GoalStatus.Planned;
         }
 

@@ -38,6 +38,12 @@ internal class Program
                 "Missing Azure PostgreSQL connection string. Set AZURE_POSTGRESQL_CONNECTIONSTRING in App Service configuration.");
         }
 
+        var normalizedConnectionString = new NpgsqlConnectionStringBuilder(azureConnectionString)
+        {
+            SslMode = SslMode.Require,
+            TrustServerCertificate = true
+        }.ConnectionString;
+
         builder.Services.AddDbContext<NoterDbContext>(options =>
         {
             options.UseNpgsql(normalizedConnectionString);

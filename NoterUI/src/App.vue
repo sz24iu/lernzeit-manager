@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { login } from "./api/auth";
 import { setAccessToken } from "./api/http";
 import { createStudyGoal, getStudyGoals } from "./api/goals";
@@ -18,6 +18,7 @@ const isCreatingMilestoneByGoal = ref({});
 const isUpdatingMilestoneById = ref({});
 const isAuthenticating = ref(false);
 const authToken = ref(localStorage.getItem(tokenStorageKey) || "");
+const currentUserId = ref("");
 const authForm = ref({
   email: demoUserEmail,
   password: demoUserPassword
@@ -45,14 +46,30 @@ const openGoals = ref({});
 
 setAccessToken(authToken.value);
 
+watch(authToken, (value) => {
+  setAccessToken(value);
+  if (!value) {
+    currentUserId.value = "";
+    goalForm.value.userId = "";
+    goals.value = [];
+    milestonesByGoal.value = {};
+    openGoals.value = {};
+  }
+});
+
 async function loadGoals() {
+  if (!isAuthenticated.value) {
+    goals.value = [];
+    return;
+  }
+
   isLoadingGoals.value = true;
   errorMsg.value = "";
 
   try {
     goals.value = await getStudyGoals();
-    if (!goalForm.value.userId && goals.value.length > 0 && goals.value[0].userId) {
-      goalForm.value.userId = goals.value[0].userId;
+    if (!goalForm.value.userId && currentUserId.value) {
+      goalForm.value.userId = currentUserId.value;
     }
   } catch (err) {
     errorMsg.value = "Studienziele konnten nicht geladen werden: " + (err.response?.status || err.message);
@@ -98,7 +115,12 @@ async function submitLogin() {
     }
 
     persistToken(result.token);
+    currentUserId.value = decodeUserId(result.token);
+    if (currentUserId.value) {
+      goalForm.value.userId = currentUserId.value;
+    }
     successMsg.value = `Angemeldet als ${authForm.value.email.trim()}.`;
+    await loadGoals();
   } catch (err) {
     errorMsg.value = "Anmeldung fehlgeschlagen: " + (err.response?.data?.errors?.join(", ") || err.message);
   } finally {
@@ -110,6 +132,17 @@ function logout() {
   persistToken("");
   successMsg.value = "Abgemeldet.";
   errorMsg.value = "";
+}
+
+function decodeUserId(token) {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded));
+    return payload.sub || payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || "";
+  } catch {
+    return "";
+  }
 }
 
 // Timer-Funktionen
@@ -184,8 +217,18 @@ const submitGoal = async () => {
   errorMsg.value = "";
   successMsg.value = "";
 
+  if (!isAuthenticated.value) {
+    errorMsg.value = "Bitte zuerst anmelden.";
+    return;
+  }
+
   if (!goalForm.value.userId.trim()) {
     errorMsg.value = "Bitte eine gueltige User-ID eingeben.";
+    return;
+  }
+
+  if (!goalForm.value.title.trim() || !goalForm.value.description.trim()) {
+    errorMsg.value = "Titel und Beschreibung duerfen nicht leer sein.";
     return;
   }
 
@@ -219,7 +262,11 @@ const submitGoal = async () => {
 
 const ensureMilestoneForm = (goalId) => {
   if (!milestoneFormByGoal.value[goalId]) {
-    milestoneFormByGoal.value[goalId] = { title: "" };
+    milestoneFormByGoal.value[goalId] = {
+      title: "",
+      dueDate: new Date().toISOString().slice(0, 10),
+      dueTime: new Date().toTimeString().slice(0, 5)
+    };
   }
 };
 
@@ -239,6 +286,15 @@ const submitMilestone = async (goalId) => {
     return;
   }
 
+  const dueDate = milestoneFormByGoal.value[goalId].dueDate;
+  const dueTime = milestoneFormByGoal.value[goalId].dueTime;
+  if (!dueDate || !dueTime) {
+    errorMsg.value = "Bitte Datum und Uhrzeit fuer den Meilenstein angeben.";
+    return;
+  }
+
+  const dueDateTime = new Date(`${dueDate}T${dueTime}:00`).toISOString();
+
   isCreatingMilestoneByGoal.value = {
     ...isCreatingMilestoneByGoal.value,
     [goalId]: true
@@ -247,7 +303,8 @@ const submitMilestone = async (goalId) => {
   try {
     await createMilestone({
       studyGoalId: goalId,
-      title
+      title,
+      dueDateTime
     });
 
     milestoneFormByGoal.value[goalId].title = "";
@@ -316,6 +373,15 @@ const statusLabel = (status) => {
   return "Fehlgeschlagen";
 };
 
+const formatDueDateTime = (value) => {
+  if (!value) return "Kein Termin gesetzt";
+  const date = new Date(value);
+  return new Intl.DateTimeFormat("de-DE", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(date);
+};
+
 const typeLabel = (type) => {
   if (type === 0) return "Modul";
   if (type === 1) return "Klausur";
@@ -327,7 +393,7 @@ const typeLabel = (type) => {
 
 <template>
   <main class="container">
-    <header class="hero panel">
+    <header v-if="isAuthenticated" class="hero panel">
       <p class="eyebrow">Lernzeit Manager</p>
       <h1>Lernziele strukturiert planen</h1>
       <p class="lead">
@@ -335,7 +401,7 @@ const typeLabel = (type) => {
       </p>
     </header>
 
-    <section class="panel auth-panel">
+    <section v-if="!isAuthenticated" class="panel auth-panel">
       <div class="section-head">
         <div>
           <h2>Test-Login</h2>
@@ -374,7 +440,17 @@ const typeLabel = (type) => {
       </p>
     </section>
 
-    <section class="panel timer-panel">
+    <section v-else class="panel auth-panel">
+      <div class="section-head">
+        <div>
+          <h2>Angemeldet</h2>
+          <p class="panel-note">Die Anwendung zeigt jetzt nur die Daten des aktuellen Nutzers.</p>
+        </div>
+        <button class="ghost" @click="logout">Abmelden</button>
+      </div>
+    </section>
+
+    <section v-if="isAuthenticated" class="panel timer-panel">
       <div class="timer-header">
         <h2>Lernzeit-Stoppuhr</h2>
       </div>
@@ -419,7 +495,7 @@ const typeLabel = (type) => {
       </div>
     </section>
 
-    <section class="panel">
+    <section v-if="isAuthenticated" class="panel">
       <div class="section-head">
         <h2>Neues Studienziel erstellen</h2>
         <span class="panel-note">Die User-ID wird, wenn moeglich, automatisch aus vorhandenen Demo-Zielen vorbelegt.</span>
@@ -463,6 +539,7 @@ const typeLabel = (type) => {
             v-model="goalForm.userId"
             type="text"
             placeholder="GUID des Users, z.B. aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+            readonly
           />
         </label>
       </div>
@@ -475,7 +552,7 @@ const typeLabel = (type) => {
     <p v-if="successMsg" class="success-box">{{ successMsg }}</p>
     <p v-if="errorMsg" class="error-box">{{ errorMsg }}</p>
 
-    <section class="panel">
+    <section v-if="isAuthenticated" class="panel">
       <div class="section-head">
         <h2>Vorhandene Studienziele</h2>
         <button class="ghost" :disabled="isLoadingGoals" @click="loadGoals">
@@ -493,6 +570,7 @@ const typeLabel = (type) => {
           <span class="badge type">{{ typeLabel(g.type) }}</span>
         </div>
         <p class="desc">{{ g.description }}</p>
+        <p class="panel-note">Eigentümer: {{ g.userId }}</p>
 
         <div class="actions">
           <button class="ghost" @click="toggleMilestones(g.id)">
@@ -503,7 +581,10 @@ const typeLabel = (type) => {
         <div v-if="openGoals[g.id]" class="milestone-wrap">
           <ul v-if="milestonesByGoal[g.id]" class="milestone-list">
             <li v-for="m in milestonesByGoal[g.id]" :key="m.id" class="milestone">
-              <span class="title">{{ m.title }}</span>
+              <div class="milestone-info">
+                <span class="title">{{ m.title }}</span>
+                <span class="panel-note">Termin: {{ formatDueDateTime(m.dueDateTime) }}</span>
+              </div>
               <button
                 type="button"
                 class="status"
@@ -528,6 +609,16 @@ const typeLabel = (type) => {
               type="text"
               placeholder="Neuer Meilenstein"
               @input="ensureMilestoneForm(g.id); milestoneFormByGoal[g.id].title = $event.target.value"
+            />
+            <input
+              :value="milestoneFormByGoal[g.id]?.dueDate || ''"
+              type="date"
+              @input="ensureMilestoneForm(g.id); milestoneFormByGoal[g.id].dueDate = $event.target.value"
+            />
+            <input
+              :value="milestoneFormByGoal[g.id]?.dueTime || ''"
+              type="time"
+              @input="ensureMilestoneForm(g.id); milestoneFormByGoal[g.id].dueTime = $event.target.value"
             />
             <button
               class="primary"
@@ -944,6 +1035,10 @@ textarea:focus {
   .inline-form {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .milestone-info {
+    width: 100%;
   }
 
   .primary,

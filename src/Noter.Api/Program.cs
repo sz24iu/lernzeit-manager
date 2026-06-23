@@ -37,6 +37,7 @@ internal class Program
             throw new InvalidOperationException(
                 "Missing Azure PostgreSQL connection string. Set AZURE_POSTGRESQL_CONNECTIONSTRING in App Service configuration.");
         }
+        var normalizedConnectionString = NormalizePostgresConnectionString(azureConnectionString);
 
         builder.Services.AddDbContext<NoterDbContext>(options =>
         {

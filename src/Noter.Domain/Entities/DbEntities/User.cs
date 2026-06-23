@@ -14,12 +14,14 @@ namespace Noter.Domain.Entities.DbEntities
     {
         public Guid Id { get; private set; } = Guid.NewGuid();
         public string Email { get; private set; }
+        public string HashPassword { get; set; }
 
         public ICollection<StudyGoal> Goals { get; private set; }
 
         public User(CreateUserDto dto)
         {
             Email = dto.Email;
+            HashPassword = dto.HashPassword;
         }
 
         private User() { }

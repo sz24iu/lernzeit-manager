@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Noter.Domain.Entities.ConfigEntities;
 using Noter.Domain.Entities.DbEntities;
 using Noter.Domain.Entities.Dtos.MilestoneDto;
 using Noter.Domain.Entities.Dtos.StudyGoalDto;
@@ -34,8 +36,6 @@ internal class Program
             throw new InvalidOperationException(
                 "Missing Azure PostgreSQL connection string. Set AZURE_POSTGRESQL_CONNECTIONSTRING in App Service configuration.");
         }
-
-        var normalizedConnectionString = NormalizePostgresConnectionString(azureConnectionString);
 
         builder.Services.AddDbContext<NoterDbContext>(options =>
         {
@@ -84,6 +84,24 @@ internal class Program
             });
         });
 
+        var jwtSettings = builder.Configuration.GetSection("JwtConfig");
+        var key = Encoding.ASCII.GetBytes(jwtSettings["Secret"]!);
+
+        var tokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+
+            ValidateIssuer = false,
+            ValidateAudience = false,
+
+            RequireExpirationTime = true,
+            ValidateLifetime = true,
+
+            ClockSkew = TimeSpan.Zero
+        };
+
+        builder.Services.AddSingleton(tokenValidationParameters);
 
         builder.Services.AddSwaggerGen(c =>
         {
@@ -100,7 +118,7 @@ internal class Program
                 Scheme = "Bearer",
                 BearerFormat = "JWT",
                 In = ParameterLocation.Header,
-                Description = "������� JWT �����: Bearer {token}"
+                Description = "Login JWT Token"
             });
 
             c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -119,11 +137,20 @@ internal class Program
             });
         });
 
+        builder.Services
+            .AddAuthentication("Bearer")
+            .AddJwtBearer("Bearer", options =>
+            {
+                options.TokenValidationParameters = tokenValidationParameters;
+            });
 
         builder.Services.AddScoped<IStudyGoalRepository, StudyGoalRepository>();
         builder.Services.AddScoped<IMilestoneRepository, MilestoneRepository>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IStudySessionPlanRepository, StudySessionPlanRepository>();
+        builder.Services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
+        builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection("JwtConfig"));
+
 
 
         var app = builder.Build();

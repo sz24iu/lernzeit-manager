@@ -1,12 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Noter.Domain.Entities.Dtos.MilestoneDto;
 using Noter.Domain.Repositories;
 
 namespace Noter.Api.Controllers
 {
-
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class MilestoneController : ControllerBase
     {
         private readonly IMilestoneRepository _repository;

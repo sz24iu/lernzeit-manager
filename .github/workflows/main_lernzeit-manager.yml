@@ -39,19 +39,19 @@ jobs:
         run: dotnet build --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+        run: dotnet publish -c Release -o "${{ env.DOTNET_ROOT }}/myapp"
 
       - name: Copy frontend to wwwroot
         shell: bash
         run: |
-          mkdir -p "${{env.DOTNET_ROOT}}/myapp/wwwroot"
-          cp -r NoterUI/dist/* "${{env.DOTNET_ROOT}}/myapp/wwwroot/"
+          mkdir -p "${{ env.DOTNET_ROOT }}/myapp/wwwroot"
+          cp -r NoterUI/dist/* "${{ env.DOTNET_ROOT }}/myapp/wwwroot/"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          path: ${{ env.DOTNET_ROOT }}/myapp
 
   deploy:
     runs-on: windows-latest
@@ -65,6 +65,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: .net-app
+          path: ./myapp
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -79,5 +80,5 @@ jobs:
         with:
           app-name: 'Lernzeit-Manager'
           slot-name: 'Production'
-          package: .
+          package: ./myapp
           

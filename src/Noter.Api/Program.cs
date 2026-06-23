@@ -39,12 +39,6 @@ internal class Program
         }
         var normalizedConnectionString = NormalizePostgresConnectionString(azureConnectionString);
 
-        var normalizedConnectionString = new NpgsqlConnectionStringBuilder(azureConnectionString)
-        {
-            SslMode = SslMode.Require,
-            TrustServerCertificate = true
-        }.ConnectionString;
-
         builder.Services.AddDbContext<NoterDbContext>(options =>
         {
             options.UseNpgsql(normalizedConnectionString);

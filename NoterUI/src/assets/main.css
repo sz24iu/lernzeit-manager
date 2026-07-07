@@ -1,0 +1,25 @@
+@import './base.css';
+
+#app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(40, 88, 170, 0.32), transparent 28%),
+    radial-gradient(circle at 90% 6%, rgba(0, 153, 133, 0.2), transparent 26%),
+    linear-gradient(180deg, #09101f 0%, #0b1325 42%, #111a31 100%);
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Avenir Next', 'Nunito Sans', 'Trebuchet MS', sans-serif;
+  letter-spacing: 0.01em;
+}

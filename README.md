@@ -1,2 +1,2 @@
-# lernzeit-manager
+# Lernzeit-Manager
 Lernzeit-Manager
